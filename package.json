@@ -1,7 +1,7 @@
 {
   "name": "instrument-tuner",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "MIT",
   "type": "module",
   "homepage": "https://ronpicard.github.io/instrument-tuner/",

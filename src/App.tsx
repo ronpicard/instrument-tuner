@@ -51,6 +51,13 @@ export function App() {
 
   const listening = mic.status === 'listening'
 
+  // Exact digital silence for a while means the mic isn't delivering audio
+  // at all (muted input, wrong device, or an iOS audio-session hiccup).
+  const lastSound = useRef(0)
+  const renderedAt = performance.now()
+  if (!listening || mic.frame.level > 0) lastSound.current = renderedAt
+  const micSilent = listening && renderedAt - lastSound.current > 2000
+
   return (
     <div className="app">
       <header className="topbar">
@@ -82,7 +89,7 @@ export function App() {
                 <span className="readout__dash">–</span>
               )}
             </div>
-            <div className="readout__hint">{hint(state, cents, listening)}</div>
+            <div className="readout__hint">{micSilent ? 'No sound from the microphone. Check that it isn’t muted.' : hint(state, cents, listening)}</div>
           </div>
           <Gauge cents={stale ? null : cents} />
           <dl className="stats">
@@ -103,7 +110,7 @@ export function App() {
             <p className="detected">Hearing {reading.label}</p>
           ) : null}
           <div className="meter" aria-hidden="true">
-            <span style={{ transform: `scaleX(${listening ? Math.min(1, mic.frame.level * 2) : 0})` }} />
+            <span style={{ transform: `scaleX(${listening ? mic.frame.level : 0})` }} />
           </div>
         </section>
 
