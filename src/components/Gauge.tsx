@@ -33,7 +33,17 @@ export function Gauge({ cents }: { cents: number | null }) {
   const zone = (5 / SPAN) * SWEEP
   return (
     <svg className={`gauge gauge--${tuneState(cents)}`} viewBox="0 0 320 190" role="img" aria-label={cents === null ? 'No pitch' : `${cents.toFixed(0)} cents`}>
+      <defs>
+        <linearGradient id="gauge-heat" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" style={{ stopColor: 'var(--bad)' }} />
+          <stop offset="0.32" style={{ stopColor: 'var(--warn)' }} />
+          <stop offset="0.5" style={{ stopColor: 'var(--good)' }} />
+          <stop offset="0.68" style={{ stopColor: 'var(--warn)' }} />
+          <stop offset="1" style={{ stopColor: 'var(--bad)' }} />
+        </linearGradient>
+      </defs>
       <path className="gauge__track" d={arc(-SWEEP, SWEEP, R)} />
+      <path className="gauge__heat" d={arc(-SWEEP, SWEEP, R)} stroke="url(#gauge-heat)" />
       <path className="gauge__zone" d={arc(-zone, zone, R)} />
       {ticks.map((t) => {
         const deg = (t / SPAN) * SWEEP

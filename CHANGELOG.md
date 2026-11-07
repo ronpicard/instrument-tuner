@@ -2,6 +2,17 @@
 
 All notable changes to Instrument Tuner are documented in this file, following the [Keep a Changelog](https://keepachangelog.com/) format.
 
+## [1.2.0] - 2026-11-07
+
+### Changed
+
+- A brighter, higher-contrast look: a near-black background with teal and blue glows, lighter panels with crisp edges, brighter secondary text, and gradient buttons and switcher.
+- The gauge arc now runs red to amber to green and back, the needle and note glow in the current colour, and colours switch instantly instead of blending through a muddy olive.
+
+### Added
+
+- Tuning every string shows a 🎉 All in tune! message.
+
 ## [1.1.0] - 2026-11-07
 
 ### Added

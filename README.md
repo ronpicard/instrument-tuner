@@ -8,7 +8,7 @@ Instrument Tuner is a chromatic and instrument tuner that runs in the browser. P
 - The big letter is the note you are tuning to. The needle shows cents from that note: the green zone is within 5 cents, amber within 15, red beyond. The ♭ or ♯ beside the note lights up when you are flat or sharp, and the hint under it says whether to tune up or down.
 - **Heard** is the frequency the tuner measures, **Target** the exact frequency of the note, and **Cents** the difference between them.
 - Choose an instrument from the menu at the top: guitar (standard, Drop D, DADGAD, Open G, 7-string), bass (4 and 5 string), ukulele, baritone ukulele, violin, viola, cello, double bass, mandolin, or banjo. **Chromatic** tunes to whichever note is nearest.
-- In instrument mode the tuner picks the nearest string automatically. Tap a string to hear its pitch and lock the tuner to that string; tap **Auto detect** to go back. A string gets a check mark once it has held in tune for a moment.
+- In instrument mode the tuner picks the nearest string automatically. Tap a string to hear its pitch and lock the tuner to that string; tap **Auto detect** to go back. A string gets a check mark once it has held in tune for a moment. Tune them all and the tuner celebrates.
 - **Reference tone** plays any note: tap a note name, change the octave, or type any frequency from 20 to 20,000 Hz. **Hold** keeps the tone sounding until you stop it.
 - **Reference pitch** sets A4 anywhere from 400 to 480 Hz, with presets for 432, 440, 442, and 444 Hz. Your instrument and reference pitch are remembered.
 - **App switcher:** the links at the top open the sibling tools, Frequency Player (Tones) and Pitch Tracker (Pitch).

@@ -150,7 +150,14 @@ export function App() {
             <section className="strings" aria-label={`${instrument.name} strings`}>
               <div className="strings__head">
                 <h2>
-                  Strings <span className="strings__count">{tuned.size ? `${tuned.size}/${instrument.strings.length} tuned` : ''}</span>
+                  Strings{' '}
+                  {tuned.size === instrument.strings.length ? (
+                    <span className="strings__done" role="status">
+                      🎉 All in tune!
+                    </span>
+                  ) : (
+                    <span className="strings__count">{tuned.size ? `${tuned.size}/${instrument.strings.length} tuned` : ''}</span>
+                  )}
                 </h2>
                 <button type="button" className={`chip ${lockedString === null ? 'chip--on' : ''}`} onClick={() => setLockedString(null)}>
                   Auto detect
