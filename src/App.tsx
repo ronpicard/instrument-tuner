@@ -4,11 +4,14 @@ import { ToneVoice } from './audio/tone'
 import { isEmbedded, useMicPitch } from './audio/useMicPitch'
 import { Gauge, tuneState } from './components/Gauge'
 import { ReferencePanel } from './components/ReferencePanel'
+import { SuiteNav } from './components/SuiteNav'
 import { findInstrument, INSTRUMENTS, nearestString } from './instruments'
 import { load, save } from './storage'
 
 /** How long the last note stays on screen after the sound stops. */
 const HOLD_MS = 1500
+/** How long a string must stay in tune to count as tuned. */
+const TUNED_MS = 700
 
 export function App() {
   const [instrumentId, setInstrumentId] = useState(() => findInstrument(load('tuner.instrument') ?? 'guitar').id)
@@ -37,9 +40,26 @@ export function App() {
   const cents = reading && target ? centsBetween(reading.measured, target.frequency) : null
   const state = stale ? 'idle' : tuneState(cents)
 
+  // A string earns a check once it has held in tune for a moment.
+  const [tuned, setTuned] = useState<ReadonlySet<number>>(() => new Set())
+  const inTuneSince = useRef<{ index: number; at: number } | null>(null)
+  useEffect(() => {
+    if (state !== 'in-tune' || targetIndex < 0) {
+      inTuneSince.current = null
+      return
+    }
+    const since = inTuneSince.current
+    if (!since || since.index !== targetIndex) inTuneSince.current = { index: targetIndex, at: mic.frame.time }
+    else if (mic.frame.time - since.at > TUNED_MS && !tuned.has(targetIndex)) setTuned((prev) => new Set(prev).add(targetIndex))
+  }, [state, targetIndex, mic.frame.time, tuned])
+
+  // A new reference pitch moves every target, so earlier checks no longer hold.
+  useEffect(() => setTuned(new Set()), [a4])
+
   const chooseInstrument = (id: string) => {
     setInstrumentId(id)
     setLockedString(null)
+    setTuned(new Set())
   }
 
   const playString = (index: number, midi: number) => {
@@ -64,6 +84,7 @@ export function App() {
         <h1 className="brand">
           <span className="brand__mark" aria-hidden="true">♪</span> Tuner
         </h1>
+        <SuiteNav current="instrument-tuner" />
         <label className="select">
           <span className="visually-hidden">Instrument</span>
           <select value={instrumentId} onChange={(e) => chooseInstrument(e.target.value)}>
@@ -76,105 +97,121 @@ export function App() {
         </label>
       </header>
 
-      <main>
-        <section className={`display display--${state}`} aria-label="Tuner display">
-          <div className="readout">
-            <div className="readout__note" aria-live="off">
-              {target ? (
-                <>
-                  {target.name}
-                  <sub>{target.octave}</sub>
-                </>
-              ) : (
-                <span className="readout__dash">–</span>
-              )}
+      <main className="layout">
+        <div className="layout__primary">
+          <section className={`display display--${state}`} aria-label="Tuner display">
+            <div className="readout">
+              <div className="readout__row">
+                <span className={`readout__arrow ${state === 'flat' || (state === 'close' && cents! < 0) ? 'readout__arrow--on' : ''}`} aria-hidden="true">
+                  ♭
+                </span>
+                <div className="readout__note" aria-live="off">
+                  {target ? (
+                    <>
+                      {target.name}
+                      <sub>{target.octave}</sub>
+                    </>
+                  ) : (
+                    <span className="readout__dash">–</span>
+                  )}
+                </div>
+                <span className={`readout__arrow ${state === 'sharp' || (state === 'close' && cents! > 0) ? 'readout__arrow--on' : ''}`} aria-hidden="true">
+                  ♯
+                </span>
+              </div>
+              <div className="readout__hint">{micSilent ? 'No sound from the microphone. Check that it isn’t muted.' : hint(state, cents, listening)}</div>
             </div>
-            <div className="readout__hint">{micSilent ? 'No sound from the microphone. Check that it isn’t muted.' : hint(state, cents, listening)}</div>
-          </div>
-          <Gauge cents={stale ? null : cents} />
-          <dl className="stats">
-            <div>
-              <dt>Heard</dt>
-              <dd>{reading ? `${reading.measured.toFixed(1)} Hz` : '— Hz'}</dd>
+            <Gauge cents={stale ? null : cents} />
+            <dl className="stats">
+              <div>
+                <dt>Heard</dt>
+                <dd>{reading ? `${reading.measured.toFixed(1)} Hz` : '— Hz'}</dd>
+              </div>
+              <div>
+                <dt>Cents</dt>
+                <dd>{cents !== null ? `${cents > 0 ? '+' : ''}${cents.toFixed(1)}` : '—'}</dd>
+              </div>
+              <div>
+                <dt>Target</dt>
+                <dd>{target ? `${target.frequency.toFixed(2)} Hz` : '— Hz'}</dd>
+              </div>
+            </dl>
+            <p className="detected">{reading && instrument.strings.length > 0 && target && reading.label !== target.label ? `Hearing ${reading.label}` : '\u00a0'}</p>
+            <div className="meter" aria-hidden="true">
+              <span style={{ transform: `scaleX(${listening ? mic.frame.level : 0})` }} />
             </div>
-            <div>
-              <dt>Cents</dt>
-              <dd>{cents !== null ? `${cents > 0 ? '+' : ''}${cents.toFixed(1)}` : '—'}</dd>
-            </div>
-            <div>
-              <dt>Target</dt>
-              <dd>{target ? `${target.frequency.toFixed(2)} Hz` : '— Hz'}</dd>
-            </div>
-          </dl>
-          {reading && instrument.strings.length > 0 && target && reading.label !== target.label ? (
-            <p className="detected">Hearing {reading.label}</p>
-          ) : null}
-          <div className="meter" aria-hidden="true">
-            <span style={{ transform: `scaleX(${listening ? mic.frame.level : 0})` }} />
-          </div>
-        </section>
-
-        <MicControl status={mic.status} onStart={() => void mic.start()} onStop={mic.stop} />
-
-        {instrument.strings.length > 0 ? (
-          <section className="strings" aria-label={`${instrument.name} strings`}>
-            <div className="strings__head">
-              <h2>Strings</h2>
-              <button type="button" className={`chip ${lockedString === null ? 'chip--on' : ''}`} onClick={() => setLockedString(null)}>
-                Auto detect
-              </button>
-            </div>
-            <div className="strings__row" style={{ gridTemplateColumns: `repeat(${instrument.strings.length}, 1fr)` }}>
-              {instrument.strings.map((midi, index) => {
-                const note = noteFromMidi(midi, a4)
-                const active = index === targetIndex && reading && !stale
-                return (
-                  <button
-                    key={`${instrument.id}-${index}`}
-                    type="button"
-                    className={[
-                      'string',
-                      active ? `string--active string--${state}` : '',
-                      lockedString === index ? 'string--locked' : '',
-                      playingString === index ? 'string--playing' : '',
-                    ].join(' ')}
-                    onClick={() => playString(index, midi)}
-                    aria-label={`Play ${note.label}, ${note.frequency.toFixed(2)} hertz, and tune to it`}
-                  >
-                    <span className="string__note">
-                      {note.name}
-                      <sub>{note.octave}</sub>
-                    </span>
-                    <span className="string__hz">{note.frequency.toFixed(1)}</span>
-                  </button>
-                )
-              })}
-            </div>
-            <p className="footnote">Tap a string to hear it and tune to it. Auto detect follows whichever string you play.</p>
           </section>
-        ) : null}
 
-        <ReferencePanel voice={voice} a4={a4} />
+          <MicControl status={mic.status} onStart={() => void mic.start()} onStop={mic.stop} />
+        </div>
 
-        <section className="calibrate" aria-label="Calibration">
-          <h2>Reference pitch</h2>
-          <div className="stepper">
-            <button type="button" onClick={() => setA4((v) => clampA4(v - 1))} aria-label="Lower A4 by 1 hertz">
-              −
-            </button>
-            <output>A4 = {a4} Hz</output>
-            <button type="button" onClick={() => setA4((v) => clampA4(v + 1))} aria-label="Raise A4 by 1 hertz">
-              +
-            </button>
-          </div>
-          <div className="presets">
-            {[432, 440, 442, 444].map((v) => (
-              <button key={v} type="button" className={`chip ${a4 === v ? 'chip--on' : ''}`} onClick={() => setA4(v)}>
-                {v}
-              </button>
-            ))}
-          </div>
-        </section>
+        <div className="layout__secondary">
+          {instrument.strings.length > 0 ? (
+            <section className="strings" aria-label={`${instrument.name} strings`}>
+              <div className="strings__head">
+                <h2>
+                  Strings <span className="strings__count">{tuned.size ? `${tuned.size}/${instrument.strings.length} tuned` : ''}</span>
+                </h2>
+                <button type="button" className={`chip ${lockedString === null ? 'chip--on' : ''}`} onClick={() => setLockedString(null)}>
+                  Auto detect
+                </button>
+              </div>
+              <div className="strings__row" style={{ gridTemplateColumns: `repeat(${instrument.strings.length}, minmax(0, 1fr))` }}>
+                {instrument.strings.map((midi, index) => {
+                  const note = noteFromMidi(midi, a4)
+                  const active = index === targetIndex && reading && !stale
+                  return (
+                    <button
+                      key={`${instrument.id}-${index}`}
+                      type="button"
+                      className={[
+                        'string',
+                        active ? `string--active string--${state}` : '',
+                        lockedString === index ? 'string--locked' : '',
+                        playingString === index ? 'string--playing' : '',
+                        tuned.has(index) ? 'string--tuned' : '',
+                      ].join(' ')}
+                      onClick={() => playString(index, midi)}
+                      aria-label={`Play ${note.label}, ${note.frequency.toFixed(2)} hertz, and tune to it${tuned.has(index) ? '. Tuned' : ''}`}
+                    >
+                      <span className="string__check" aria-hidden="true">✓</span>
+                      <span className="string__note">
+                        {note.name}
+                        <sub>{note.octave}</sub>
+                      </span>
+                      <span className="string__hz">{note.frequency.toFixed(1)}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="footnote">Tap a string to hear it and tune to it. Auto detect follows whichever string you play; a string gets a check once it holds in tune.</p>
+            </section>
+          ) : null}
+
+          <ReferencePanel voice={voice} a4={a4} />
+
+          <section className="calibrate" aria-label="Calibration">
+            <h2>Reference pitch</h2>
+            <div className="calibrate__row">
+              <div className="stepper">
+                <button type="button" onClick={() => setA4((v) => clampA4(v - 1))} aria-label="Lower A4 by 1 hertz">
+                  −
+                </button>
+                <output>A4 = {a4} Hz</output>
+                <button type="button" onClick={() => setA4((v) => clampA4(v + 1))} aria-label="Raise A4 by 1 hertz">
+                  +
+                </button>
+              </div>
+              <div className="presets">
+                {[432, 440, 442, 444].map((v) => (
+                  <button key={v} type="button" className={`chip ${a4 === v ? 'chip--on' : ''}`} onClick={() => setA4(v)}>
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
       </main>
 
       <footer className="footer">

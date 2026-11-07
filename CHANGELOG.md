@@ -2,6 +2,18 @@
 
 All notable changes to Instrument Tuner are documented in this file, following the [Keep a Changelog](https://keepachangelog.com/) format.
 
+## [1.1.0] - 2026-11-07
+
+### Added
+
+- A switcher at the top links Tuner, Tones (Frequency Player), and Pitch (Pitch Tracker), so you can move between the three music tools.
+- Flat (♭) and sharp (♯) marks either side of the note light up to show which way you are off.
+- Each string gets a check mark once it has held in tune for a moment, and the Strings heading counts how many are done. Changing instrument or reference pitch clears them.
+
+### Changed
+
+- On desktops the reading and needle sit on the left and stay in view while the strings, reference tone, and reference pitch fill the right. Phones held sideways show the whole reading beside the strings without scrolling.
+
 ## [1.0.1] - 2026-11-07
 
 ### Fixed
